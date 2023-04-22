@@ -17,14 +17,14 @@ echo -n "path/to/your/python3 : "
 read pythonX
 
 if [ ! -d .dfl/env ]; then
-  virtualenv -n creator -p pythonX .dfl/env
+  virtualenv -p $pythonX .dfl/env
 fi
 
 source .dfl/env/bin/activate
 
-pythonX -m pip install --upgrade pip
+$pythonX -m pip install --upgrade pip
 
-version=$(pythonX -V | cut -f 2 -d ' ' | cut -f 1,2 -d .)
+version=$($pythonX -V | cut -f 2 -d ' ' | cut -f 1,2 -d .)
 reqs_file='requirements.txt'
 
 version_suffix=''
