@@ -13,7 +13,7 @@ def parse_args():
     parser.add_argument('--num_classes', type=int, default=100, help='number of classes')
     parser.add_argument('--image_size', type=int, default=255, help='image size')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
-    parser.add_argument('--output_model_path', type=str, required=True, help='Path to output TFLite model.')
+    parser.add_argument('--output_model_path', type=str, default='model.tflite', required=True, help='Path to output TFLite model.')
     parser.add_argument('--epochs', type=int, default=10000, help='number of epochs')
     parser.add_argument('--help', action='help', default=argparse.SUPPRESS, help='show this help message and exit')
     return parser.parse_args()
