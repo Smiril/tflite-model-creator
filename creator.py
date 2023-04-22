@@ -8,7 +8,7 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
 
 def parse_args():
-    parser = argparse.ArgumentParser(description='Train a MobileNetV2 image classification model')
+    parser = argparse.ArgumentParser(description='Train a MobileNetV2 image classification model',add_help=False)
     parser.add_argument('image_dir', help='path to image directory')
     parser.add_argument('--num_classes', type=int, default=10, help='number of classes')
     parser.add_argument('--image_size', type=int, default=224, help='image size')
