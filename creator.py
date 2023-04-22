@@ -42,6 +42,7 @@ def main():
         height_shift_range=0.2,
         shear_range=0.2,
         zoom_range=0.2,
+        vertical_flip=True,
         horizontal_flip=True,
         fill_mode='nearest')
 
@@ -84,6 +85,7 @@ def main():
     height_shift_range=0.2,
     shear_range=0.2,
     zoom_range=0.2,
+    vertical_flip=True,
     horizontal_flip=True,
     fill_mode='nearest',
     validation_split=0.2) # 20% of the training data will be used for validation
