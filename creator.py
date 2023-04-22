@@ -49,6 +49,8 @@ def main():
         target_size=image_size,
         batch_size=batch_size,
         class_mode='categorical')
+        
+    
 
     # Create the MobileNetV2 base model
     base_model = MobileNetV2(input_shape=(224, 224, 3), include_top=False, weights='imagenet')
@@ -71,6 +73,37 @@ def main():
 
     # Train the model
     model.fit(train_generator, epochs=args.epochs)
+    
+    # Create an ImageDataGenerator for data augmentation
+    train_datagen = ImageDataGenerator(
+    rescale=1./255,
+    rotation_range=20,
+    width_shift_range=0.2,
+    height_shift_range=0.2,
+    shear_range=0.2,
+    zoom_range=0.2,
+    horizontal_flip=True,
+    fill_mode='nearest',
+    validation_split=0.2) # 20% of the training data will be used for validation
+
+    # Load the training data
+    train_generator = train_datagen.flow_from_directory(
+    os.path.join(image_dir, 'train'),
+    target_size=image_size,
+    batch_size=batch_size,
+    class_mode='categorical',
+    subset='training')
+
+    # Load the validation data
+    validation_generator = train_datagen.flow_from_directory(
+    os.path.join(image_dir, 'validate'),
+    target_size=image_size,
+    batch_size=batch_size,
+    class_mode='categorical',
+    subset='validation')
+    
+    # Train the model with the training and validation data
+    model.fit(train_generator, epochs=args.epochs, validation_data=validation_generator)
     
     # Convert the model to TensorFlow Lite format
     converter = lite.TFLiteConverter.from_keras_model(model)
