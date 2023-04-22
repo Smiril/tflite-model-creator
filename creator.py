@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--output_model_path', type=str, required=True, help='Path to output TFLite model.')
     parser.add_argument('--epochs', type=int, default=10, help='number of epochs')
+    parser.add_argument('--help', action='help', help='show this help message and exit')
     return parser.parse_args()
 
 def main():
