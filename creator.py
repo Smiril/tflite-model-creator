@@ -9,12 +9,12 @@ from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train a MobileNetV2 image classification model',add_help=False)
-    parser.add_argument('image_dir', help='path to image directory')
-    parser.add_argument('--num_classes', type=int, default=10, help='number of classes')
-    parser.add_argument('--image_size', type=int, default=224, help='image size')
+    parser.add_argument('image_dir', type=str, default='image', help='path to image directory')
+    parser.add_argument('--num_classes', type=int, default=100, help='number of classes')
+    parser.add_argument('--image_size', type=int, default=255, help='image size')
     parser.add_argument('--batch_size', type=int, default=32, help='batch size')
     parser.add_argument('--output_model_path', type=str, required=True, help='Path to output TFLite model.')
-    parser.add_argument('--epochs', type=int, default=10, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=10000, help='number of epochs')
     parser.add_argument('--help', action='help', help='show this help message and exit')
     return parser.parse_args()
 
