@@ -18,6 +18,68 @@ def parse_args():
     parser.add_argument('--help', action='help', default=argparse.SUPPRESS, help='show this help message and exit')
     return parser.parse_args()
 
+# Set directory paths
+trainer_dir = 'image/train'
+validate_dir = 'image/validate'
+
+# Set path for output label file
+label_path = 'labels.txt'
+
+# Create a dictionary to hold the label mappings
+label_map = {}
+
+# Create the label writer function
+def write_labels(output_file, directory):
+    # Get a list of all the files in the directory
+    files = os.listdir(directory)
+
+    # Loop through the files
+    for filename in files:
+        # Check if the file is an image file
+        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".bmp") or filename.endswith(".png"):
+            # Extract the label from the filename
+            label = filename.split("_")[0]
+
+            # Add the label to the label map if it doesn't already exist
+            if label not in label_map:
+                label_map[label] = len(label_map)
+
+            # Write the label to the output file
+            with open(output_file, "a") as f:
+                f.write(filename + " " + str(label_map[label]) + "\n")
+
+# Write labels for trainer directory
+write_labels(label_path, trainer_dir)
+
+# Append labels for validate directory to the output file
+write_labels(label_path, validate_dir)
+
+# Create the label writer function
+def write_labels(output_file, directory):
+    # Get a list of all the files in the directory
+    files = os.listdir(directory)
+
+    # Loop through the files
+    for filename in files:
+        # Check if the file is an image file
+        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".bmp") or filename.endswith(".png"):
+            # Extract the label from the filename
+            label = filename.split("_")[0]
+
+            # Add the label to the label map if it doesn't already exist
+            if label not in label_map:
+                label_map[label] = len(label_map)
+
+            # Write the label to the output file
+            with open(output_file, "a") as f:
+                f.write(filename + " " + str(label_map[label]) + "\n")
+
+# Write labels for trainer directory
+write_labels(label_path, trainer_dir)
+
+# Append labels for validate directory to the output file
+write_labels(label_path, validate_dir)
+            
 def main():
     # Parse command line arguments
     args = parse_args()
