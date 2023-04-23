@@ -48,38 +48,6 @@ def write_labels(output_file, directory):
             with open(output_file, "a") as f:
                 f.write(filename + " " + str(label_map[label]) + "\n")
 
-# Write labels for trainer directory
-write_labels(label_path, trainer_dir)
-
-# Append labels for validate directory to the output file
-write_labels(label_path, validate_dir)
-
-# Create the label writer function
-def write_labels(output_file, directory):
-    # Get a list of all the files in the directory
-    files = os.listdir(directory)
-
-    # Loop through the files
-    for filename in files:
-        # Check if the file is an image file
-        if filename.endswith(".jpg") or filename.endswith(".jpeg") or filename.endswith(".bmp") or filename.endswith(".png"):
-            # Extract the label from the filename
-            label = filename.split("_")[0]
-
-            # Add the label to the label map if it doesn't already exist
-            if label not in label_map:
-                label_map[label] = len(label_map)
-
-            # Write the label to the output file
-            with open(output_file, "a") as f:
-                f.write(filename + " " + str(label_map[label]) + "\n")
-
-# Write labels for trainer directory
-write_labels(label_path, trainer_dir)
-
-# Append labels for validate directory to the output file
-write_labels(label_path, validate_dir)
-            
 def main():
     # Parse command line arguments
     args = parse_args()
@@ -134,6 +102,12 @@ def main():
     # Compile the model
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
+    # Write labels for trainer directory
+    write_labels(label_path, trainer_dir)
+
+    # Append labels for validate directory to the output file
+    write_labels(label_path, validate_dir)
+    
     # Train the model
     model.fit(train_generator, epochs=args.epochs)
     
