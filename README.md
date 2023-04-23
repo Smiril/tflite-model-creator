@@ -21,4 +21,4 @@ python creator.py image --num_classes 100 --image_size 255 --batch_size 32 --epo
 
 ```
 https://github.com/Smiril/coral-ai-edge-tpu-video-watcher.git
-``
+```
