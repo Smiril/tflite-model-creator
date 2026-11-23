@@ -128,6 +128,46 @@ def main():
   mlmodel_int8.save(coreml_output_path)
   print(f'Gespeichert: {coreml_output_path}')
 
+	# =========================================================================
+	# 4. Axelera AI Metis AIPU (.onnx -> .axm / .axmodel) -> für --device axelera
+	# =========================================================================
+	print('\n[4/4] Exportiere ONNX und kompiliere für Axelera Metis AIPU...')
+
+	onnx_output_path = args.output_model_path.replace('.tflite', '.onnx')
+	axm_output_path = args.output_model_path.replace('.tflite', '.axm')
+
+	# 1. Keras-Modell zu ONNX (Opset 13-17 wird von Voyager am besten unterstützt)
+	spec = (tf.TensorSpec((1, img_h, img_w, 3), tf.float32, name='input'),)
+	model_proto, _ = tf2onnx.convert.from_keras(
+    model, input_signature=spec, opset=15, output_path=onnx_output_path
+	)
+	print(f'ONNX-Modell gespeichert: {onnx_output_path}')
+
+	# 2. Mit dem Axelera Voyager SDK Compiler quantisieren & zu .axm kompilieren
+	# (Erfordert aktiviertes Voyager SDK Environment auf Linux/x86_64)
+	try:
+ 		from axelera.compiler import compile_model  # Voyager SDK Compiler API
+
+  	compile_model(
+      	model_path=onnx_output_path,
+      	output_path=axm_output_path,
+      	calibration_dataset=args.calib_dir,  # Nutzt deine Validierungsbilder für Mixed-Precision Quantisierung
+  	)
+  	print(f'Axelera AIPU-Modell gespeichert: {axm_output_path}')
+	except ImportError:
+  	print(
+      	'Hinweis: axelera.compiler nicht gefunden (ist nur im Axelera Voyager'
+      	' SDK auf Linux verfügbar).'
+  	)
+  	print(
+      	'Führe auf dem Axelera-Host folgenden Befehl aus, um die .axm-Datei zu'
+      	' erzeugen:'
+  	)
+  	print(
+      	f'  axcompiler --model {onnx_output_path} --output {axm_output_path}'
+      	' --quantize'
+  	)
+
 
 if __name__ == '__main__':
   main()
