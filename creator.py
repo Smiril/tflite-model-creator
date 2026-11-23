@@ -85,16 +85,7 @@ def main():
 
   # 2. Als CoreML .mlpackage speichern (für --device mps / npu auf macOS)
   coreml_output_path = args.output_model_path.replace('.tflite', '.mlpackage')
-  mlmodel = ct.convert(
-      model,
-      inputs=[
-          ct.TensorType(
-              name='input_1', shape=(1, args.image_size, args.image_size, 3)
-          )
-      ],
-      compute_units=ct.ComputeUnit.ALL,
-      minimum_deployment_target=ct.target.macOS13,
-  )
+  mlmodel = ct.convert(model,inputs=[ct.TensorType(name='input_1', shape=(1, args.image_size, args.image_size, 3))],compute_units=ct.ComputeUnit.ALL,minimum_deployment_target=ct.target.macOS13)
   mlmodel.save(coreml_output_path)
   print(f'CoreML-Modell (NPU/MPS) gespeichert unter: {coreml_output_path}')
 
