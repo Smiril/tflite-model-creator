@@ -15,7 +15,7 @@ For 100 species make in `image/train` and `image/validate` 100 sub dirs for each
 
 ## Run the Code
 ```
-python creator.py image --num_classes 100 --image_size 255 --batch_size 32 --epochs 1000 --output_model_path output_model.('.tflite'/'.mlpackage')
+python creator.py image --num_classes 100 --image_size 255 --batch_size 32 --epochs 1000 --output_model_path output_model.tflite
 ```
 ## Links
 
