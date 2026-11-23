@@ -2,6 +2,7 @@
 import argparse
 import os
 import coremltools as ct
+import coremltools.optimize.coreml as cto
 import tensorflow as tf
 import tensorflow.lite as lite
 from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
@@ -76,19 +77,52 @@ def main():
       validation_data=validation_generator,
   )
 
-  # 1. Als TFLite speichern (für --device cpu / gpu / tpu)
-  converter = lite.TFLiteConverter.from_keras_model(model)
-  tflite_model = converter.convert()
-  with open(args.output_model_path, 'wb') as f:
-    f.write(tflite_model)
-  print(f'TFLite-Modell gespeichert unter: {args.output_model_path}')
+    # Repräsentativer Datensatz für die Kalibrierung der Int8-Quantisierung (aus Validierungsdaten)
+    def representative_dataset():
+      for _ in range(100):
+        images, _ = next(validation_generator)
+        for i in range(images.shape[0]):
+          yield [np.expand_dims(images[i], axis=0).astype(np.float32)]
 
-  # 2. Als CoreML .mlpackage speichern (für --device mps / npu auf macOS)
-  coreml_output_path = args.output_model_path.replace('.tflite', '.mlpackage')
-  mlmodel = ct.convert(model,inputs=[ct.TensorType(name='input_1', shape=(1, args.image_size, args.image_size, 3))],compute_units=ct.ComputeUnit.ALL,minimum_deployment_target=ct.target.macOS13)
-  mlmodel.save(coreml_output_path)
-  print(f'CoreML-Modell (NPU/MPS) gespeichert unter: {coreml_output_path}')
+    # 1. Standard TFLite (Float32 für CPU / GPU)
+    converter = lite.TFLiteConverter.from_keras_model(model)
+    tflite_model = converter.convert()
+    with open(args.output_model_path, 'wb') as f:
+      f.write(tflite_model)
+    print(f'TFLite (Float32) gespeichert unter: {args.output_model_path}')
 
+    # 2. Full-Integer Int8 TFLite (Pflicht für Coral Edge TPU!)
+    int8_tflite_path = args.output_model_path.replace('.tflite', '_int8.tflite')
+    converter_int8 = lite.TFLiteConverter.from_keras_model(model)
+    converter_int8.optimizations = [tf.lite.Optimize.DEFAULT]
+    converter_int8.representative_dataset = representative_dataset
+    # Erzwingt reine Int8-Operationen (Voraussetzung für edgetpu_compiler)
+    converter_int8.target_spec.supported_ops = [
+        tf.lite.OpsSet.TFLITE_BUILTINS_INT8
+    ]
+    converter_int8.inference_input_type = tf.uint8
+    converter_int8.inference_output_type = tf.uint8
+
+    tflite_int8_model = converter_int8.convert()
+    with open(int8_tflite_path, 'wb') as f:
+      f.write(tflite_int8_model)
+    print(f'TFLite (Int8 für EdgeTPU) gespeichert unter: {int8_tflite_path}')
+
+    # Hinweis: Für den Coral USB Accelerator muss diese Datei anschließend noch einmalig
+    # unter Linux mit dem Kommandozeilen-Tool kompiliert werden:
+    # edgetpu_compiler model_int8.tflite -> erzeugt model_int8_edgetpu.tflite
+
+    # 3. CoreML .mlpackage mit Int8-Gewichtsquantisierung (für Apple Neural Engine / NPU)
+    coreml_output_path = args.output_model_path.replace('.tflite', '.mlpackage')
+    mlmodel = ct.convert(model,inputs=[ct.TensorType(name='input_1', shape=(1, args.image_size, args.image_size, 3))],compute_units=ct.ComputeUnit.ALL,minimum_deployment_target=ct.target.macOS13)
+
+    # Gewichte auf Int8 quantisieren (reduziert Modellgröße um ~75% & beschleunigt ANE)
+    op_config = cto.OpLinearQuantizerConfig(mode='linear_symmetric', dtype='int8')
+    config = cto.OptimizationConfig(global_config=op_config)
+    mlmodel_int8 = cto.linear_quantize_weights(mlmodel, config=config)
+
+    mlmodel_int8.save(coreml_output_path)
+    print(f'CoreML (Int8 für Apple NPU) gespeichert unter: {coreml_output_path}')
 
 if __name__ == '__main__':
   main()
