@@ -39,44 +39,20 @@ def main():
   batch_size = args.batch_size
 
   # 1. Data Augmentation für Training
-  train_datagen = ImageDataGenerator(
-      rescale=1.0 / 255,
-      rotation_range=20,
-      width_shift_range=0.2,
-      height_shift_range=0.2,
-      shear_range=0.2,
-      zoom_range=0.2,
-      vertical_flip=True,
-      horizontal_flip=True,
-      fill_mode='nearest',
-  )
+  train_datagen = ImageDataGenerator(rescale=1.0 / 255,rotation_range=20,width_shift_range=0.2,height_shift_range=0.2,shear_range=0.2,zoom_range=0.2,vertical_flip=True,horizontal_flip=True,fill_mode='nearest')
 
   # Validierung ohne Verzerrungen (nur Rescaling)
   val_datagen = ImageDataGenerator(rescale=1.0 / 255)
 
-  train_generator = train_datagen.flow_from_directory(
-      os.path.join(image_dir, 'train'),
-      target_size=image_size,
-      batch_size=batch_size,
-      class_mode='categorical',
-  )
+  train_generator = train_datagen.flow_from_directory(os.path.join(image_dir, 'train'),target_size=image_size,batch_size=batch_size,class_mode='categorical')
 
-  validation_generator = val_datagen.flow_from_directory(
-      os.path.join(image_dir, 'validate'),
-      target_size=image_size,
-      batch_size=batch_size,
-      class_mode='categorical',
-  )
+  validation_generator = val_datagen.flow_from_directory(os.path.join(image_dir, 'validate'),target_size=image_size,batch_size=batch_size,class_mode='categorical')
 
   num_classes = train_generator.num_classes or args.num_classes
   save_labels_from_generator(train_generator, 'labels.txt')
 
   # 2. MobileNetV2 Modell aufbauen & trainieren
-  base_model = MobileNetV2(
-      input_shape=(args.image_size, args.image_size, 3),
-      include_top=False,
-      weights='imagenet',
-  )
+  base_model = MobileNetV2(input_shape=(args.image_size, args.image_size, 3),include_top=False,weights='imagenet')
 
   for layer in base_model.layers:
     layer.trainable = True
@@ -87,15 +63,9 @@ def main():
   predictions = tf.keras.layers.Dense(num_classes, activation='softmax')(x)
 
   model = tf.keras.Model(inputs=base_model.input, outputs=predictions)
-  model.compile(
-      optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy']
-  )
+  model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-  model.fit(
-      train_generator,
-      epochs=args.epochs,
-      validation_data=validation_generator,
-  )
+  model.fit(train_generator,epochs=args.epochs,validation_data=validation_generator)
 
   # =========================================================================
   # EXPORT 1: Standard TFLite (Float32) -> für --device cpu & --device gpu
@@ -149,20 +119,9 @@ def main():
   # =========================================================================
   print('\n[3/3] Berechne CoreML .mlpackage (Int8) für Apple Silicon...')
   coreml_output_path = args.output_model_path.replace('.tflite', '.mlpackage')
-  mlmodel = ct.convert(
-      model,
-      inputs=[
-          ct.TensorType(
-              name='input_1', shape=(1, args.image_size, args.image_size, 3)
-          )
-      ],
-      compute_units=ct.ComputeUnit.ALL,
-      minimum_deployment_target=ct.target.macOS13,
-  )
+  mlmodel = ct.convert(model,inputs=[ct.TensorType(name='input_1', shape=(1, args.image_size, args.image_size, 3))],compute_units=ct.ComputeUnit.ALL,minimum_deployment_target=ct.target.macOS13)
 
-  op_config = cto.OpLinearQuantizerConfig(
-      mode='linear_symmetric', dtype='int8'
-  )
+  op_config = cto.OpLinearQuantizerConfig(mode='linear_symmetric', dtype='int8')
   config = cto.OptimizationConfig(global_config=op_config)
   mlmodel_int8 = cto.linear_quantize_weights(mlmodel, config=config)
 
