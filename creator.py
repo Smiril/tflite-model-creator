@@ -2,6 +2,7 @@
 import argparse
 import os
 import subprocess
+import tf2onnx
 import coremltools as ct
 import coremltools.optimize.coreml as cto
 import numpy as np
