@@ -1,0 +1,13 @@
+base:
+  image_size: [224, 224]
+  batch_size: 32
+
+model:
+  learning_rate: 0.001
+  num_classes: 90
+  dropout_rate: 0.3
+
+training:
+  epochs: 25
+  augmentation: True
+  validation_split: 0.2
