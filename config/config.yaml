@@ -1,0 +1,25 @@
+artifacts_root: artifacts
+
+data_ingestion:
+  root_dir: artifacts/data_ingestion
+  source_URL: https://kaggle.com
+  local_data_file: artifacts/data_ingestion/data.zip
+  unzip_dir: artifacts/data_ingestion
+
+prepare_model:
+  root_dir: artifacts/prepare_model
+  model_path: artifacts/prepare_model/base_model_updated.h5
+
+model_training:
+  root_dir: artifacts/model_training
+  trained_model_path: artifacts/model_training/model.h5
+
+model_evaluation:
+  root_dir: artifacts/model_evaluation
+  metrics_file_path: artifacts/model_evaluation/metrics.csv
+  confusion_matrix_path: artifacts/model_evaluation/confusion_matrix.png
+
+prediction:
+  root_dir: artifacts/prediction
+  class_names_file: artifacts/model_training/labels.txt
+  webapp_dir: webapp
