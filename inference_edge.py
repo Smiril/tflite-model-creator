@@ -8,7 +8,7 @@ from PIL import Image
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Inferenz & Latenz-Benchmark für MobileNetV2 auf CPU, GPU, Coral EdgeTPU, Apple Silicon (MPS/NPU) und Axelera AIPU"
+        description="Inferenz & Latenz-Benchmark für MobileNetV2 auf CPU, GPU, EdgeTPU, Apple Silicon (MPS/NPU) & Axelera AIPU"
     )
     parser.add_argument("--image", type=str, required=True, help="Pfad zum Eingabebild")
     parser.add_argument(
@@ -55,9 +55,6 @@ def softmax(x: np.ndarray) -> np.ndarray:
     return e_x / e_x.sum()
 
 
-# =========================================================================
-# 1. TFLite CPU & GPU (--device cpu / gpu)
-# =========================================================================
 def run_tflite_cpu_gpu(model_path: str, image_path: str, image_size: int, device: str, runs: int):
     try:
         import tflite_runtime.interpreter as tflite
@@ -86,24 +83,20 @@ def run_tflite_cpu_gpu(model_path: str, image_path: str, image_size: int, device
     output_details = interpreter.get_output_details()
     input_data = load_image(image_path, image_size, as_uint8=False)
 
-    # Warmup
-    interpreter.set_tensor(input_details["index"], input_data)
+    interpreter.set_tensor(input_details[0]["index"], input_data)
     interpreter.invoke()
 
     latencies = []
     for _ in range(runs):
         t0 = time.perf_counter()
-        interpreter.set_tensor(input_details["index"], input_data)
+        interpreter.set_tensor(input_details[0]["index"], input_data)
         interpreter.invoke()
         latencies.append((time.perf_counter() - t0) * 1000.0)
 
-    probs = interpreter.get_tensor(output_details["index"])
+    probs = interpreter.get_tensor(output_details[0]["index"])[0]
     return probs, latencies
 
 
-# =========================================================================
-# 2. Coral Edge TPU Int8 (--device tpu)
-# =========================================================================
 def run_edgetpu(model_path: str, image_path: str, image_size: int, runs: int):
     try:
         import tflite_runtime.interpreter as tflite
@@ -119,23 +112,20 @@ def run_edgetpu(model_path: str, image_path: str, image_size: int, runs: int):
 
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-
-    # EdgeTPU-Modell nutzt inference_input_type = tf.uint8
     input_data = load_image(image_path, image_size, as_uint8=True)
 
-    # Warmup
-    interpreter.set_tensor(input_details["index"], input_data)
+    interpreter.set_tensor(input_details[0]["index"], input_data)
     interpreter.invoke()
 
     latencies = []
     for _ in range(runs):
         t0 = time.perf_counter()
-        interpreter.set_tensor(input_details["index"], input_data)
+        interpreter.set_tensor(input_details[0]["index"], input_data)
         interpreter.invoke()
         latencies.append((time.perf_counter() - t0) * 1000.0)
 
-    raw_out = interpreter.get_tensor(output_details["index"])
-    scale, zero_point = output_details["quantization"]
+    raw_out = interpreter.get_tensor(output_details[0]["index"])[0]
+    scale, zero_point = output_details[0]["quantization"]
     if scale > 0:
         probs = (raw_out.astype(np.float32) - zero_point) * scale
     else:
@@ -144,20 +134,16 @@ def run_edgetpu(model_path: str, image_path: str, image_size: int, runs: int):
     return probs, latencies
 
 
-# =========================================================================
-# 3. Apple Silicon CoreML .mlpackage (--device mps / npu)
-# =========================================================================
 def run_coreml(mlpackage_path: str, image_path: str, image_size: int, device: str, runs: int):
     import coremltools as ct
 
     compute_unit = ct.ComputeUnit.CPU_AND_GPU if device == "mps" else ct.ComputeUnit.ALL
     mlmodel = ct.models.MLModel(mlpackage_path, compute_units=compute_unit)
 
-    input_name = mlmodel.get_spec().description.input.name
-    output_name = mlmodel.get_spec().description.output.name
+    input_name = mlmodel.get_spec().description.input[0].name
+    output_name = mlmodel.get_spec().description.output[0].name
     input_data = load_image(image_path, image_size, as_uint8=False)
 
-    # Warmup
     mlmodel.predict({input_name: input_data})
 
     latencies = []
@@ -170,9 +156,6 @@ def run_coreml(mlpackage_path: str, image_path: str, image_size: int, device: st
     return probs, latencies
 
 
-# =========================================================================
-# 4. Axelera AI Metis AIPU (--device axelera)
-# =========================================================================
 def run_axelera(axm_path: str, image_path: str, image_size: int, runs: int):
     from axelera.app import create_inference_session
 
@@ -180,7 +163,6 @@ def run_axelera(axm_path: str, image_path: str, image_size: int, runs: int):
     latencies = []
 
     with create_inference_session(axm_path) as session:
-        # Warmup
         session.run(input_data)
 
         for _ in range(runs):
