@@ -247,110 +247,106 @@ class ModelTraining:
         logger.info(f"Gespeichert: {int8_tflite_path}")
 
         try:
-subprocess.run(["edgetpu_compiler", int8_tflite_path, "-o", self.config.root_dir], check=True)
-logger.info("EdgeTPU-Kompilierung erfolgreich abgeschlossen.")
-except (FileNotFoundError, subprocess.CalledProcessError):
-logger.info(
-f"Hinweis: edgetpu_compiler nicht gefunden. Auf Linux ausführen: edgetpu_compiler {int8_tflite_path}"
-)
-# 3. CoreML .mlpackage (Int8) -> für --device mps & --device npu
-logger.info("[3/4] Berechne CoreML .mlpackage (Int8) für Apple Silicon...")
-coreml_output_path = base_export_path.replace(".tflite", ".mlpackage")
-mlmodel = ct.convert(
-model,
-inputs=[ct.TensorType(name="input_1", shape=(1, img_h, img_w, 3))],
-compute_units=ct.ComputeUnit.ALL,
-minimum_deployment_target=ct.target.macOS13,
-)
-op_config = cto.OpLinearQuantizerConfig(mode="linear_symmetric", dtype="int8")
-opt_config = cto.OptimizationConfig(global_config=op_config)
-mlmodel_int8 = cto.linear_quantize_weights(mlmodel, config=opt_config)
-mlmodel_int8.save(coreml_output_path)
-logger.info(f"Gespeichert: {coreml_output_path}")
-# 4. Axelera AI Metis AIPU (.onnx -> .axm) -> für --device axelera
-logger.info("[4/4] Exportiere ONNX und kompiliere für Axelera Metis AIPU...")
-onnx_output_path = base_export_path.replace(".tflite", ".onnx")
-axm_output_path = base_export_path.replace(".tflite", ".axm")
-spec = (tf.TensorSpec((1, img_h, img_w, 3), tf.float32, name="input_1"),)
-tf2onnx.convert.from_keras(
-model, input_signature=spec, opset=15, output_path=onnx_output_path
-)
-logger.info(f"ONNX-Modell gespeichert: {onnx_output_path}")
-try:
-from axelera.compiler import compile_model
-compile_model(
-model_path=onnx_output_path,
-output_path=axm_output_path,
-calibration_dataset=self.calib_dir,
-)
-logger.info(f"Axelera AIPU-Modell gespeichert: {axm_output_path}")
-except ImportError:
-logger.info(
-"Hinweis: axelera.compiler nicht gefunden. Auf Axelera-Host ausführen:\n"
-f"  axcompiler --model {onnx_output_path} --output {axm_output_path} --quantize"
-)
-def train(self):
-"""Trainiert das MobileNetV2 .h5 Modell und exportiert alle Zielformate."""
-self.validate_dataset()
-logger.info(f"Lade .h5 Basismodell von {self.config.updated_base_model_path}")
-model = tf.keras.models.load_model(str(self.config.updated_base_model_path), compile=False)
-base_model = self._get_base_model(model)
-if base_model is not None:
-for layer in model.layers:
-layer.trainable = True
-base_model.trainable = False
-train_generator, val_generator, class_weights = self.get_image_dataset()
-callbacks = self._create_callbacks()
-steps_per_epoch = max(1, train_generator.samples // self.config.params_batch_size)
-validation_steps = max(1, val_generator.samples // self.config.params_batch_size)
-# Phase 1: Nur Classification Head trainieren
-logger.info("Phase 1: Training des Classification Heads")
-initial_epochs = max(2, self.config.params_epochs // 3)
-self._compile_model(model, lr=self.config.params_learning_rate)
-history = model.fit(
-train_generator,
-steps_per_epoch=steps_per_epoch,
-epochs=initial_epochs,
-validation_data=val_generator,
-validation_steps=validation_steps,
-callbacks=callbacks,
-class_weight=class_weights,
-verbose=1,
-)
-# Phase 2: Fine-Tuning der obersten MobileNetV2-Blöcke
-logger.info("Phase 2: Fine-Tuning der oberen MobileNetV2-Layer")
-if base_model is not None:
-base_model.trainable = True
-for layer in base_model.layers[:-35]:
-layer.trainable = False
-for layer in base_model.layers[-35:]:
-if isinstance(layer, tf.keras.layers.BatchNormalization):
-layer.trainable = False
-else:
-layer.trainable = True
-self._compile_model(model, lr=self.config.params_learning_rate / 100)
-last_epoch = history.epoch[-1] + 1 if history.epoch else initial_epochs
-history = model.fit(
-train_generator,
-steps_per_epoch=steps_per_epoch,
-epochs=self.config.params_epochs,
-initial_epoch=last_epoch,
-validation_data=val_generator,
-validation_steps=validation_steps,
-callbacks=callbacks,
-class_weight=class_weights,
-verbose=1,
-)
-best_model_path = os.path.join(self.config.root_dir, "best_model.h5")
-if os.path.exists(best_model_path):
-logger.info(f"Lade bestes Checkpoint-Modell: {best_model_path}")
-model = tf.keras.models.load_model(best_model_path)
-model.save(str(self.config.trained_model_path))
-logger.info(f"Finales .h5 Modell gespeichert: {self.config.trained_model_path}")
-self.export_edge_models(model, val_generator)
-return history
-
-
-
-
-
+			subprocess.run(["edgetpu_compiler", int8_tflite_path, "-o", self.config.root_dir], check=True)
+			logger.info("EdgeTPU-Kompilierung erfolgreich abgeschlossen.")
+		except (FileNotFoundError, subprocess.CalledProcessError):
+			logger.info(
+				f"Hinweis: edgetpu_compiler nicht gefunden. Auf Linux ausführen: edgetpu_compiler {int8_tflite_path}"
+			)
+		# 3. CoreML .mlpackage (Int8) -> für --device mps & --device npu
+		logger.info("[3/4] Berechne CoreML .mlpackage (Int8) für Apple Silicon...")
+		coreml_output_path = base_export_path.replace(".tflite", ".mlpackage")
+		mlmodel = ct.convert(
+				model,
+				inputs=[ct.TensorType(name="input_1", shape=(1, img_h, img_w, 3))],
+				compute_units=ct.ComputeUnit.ALL,
+				minimum_deployment_target=ct.target.macOS13,
+				)
+		op_config = cto.OpLinearQuantizerConfig(mode="linear_symmetric", dtype="int8")
+		opt_config = cto.OptimizationConfig(global_config=op_config)
+		mlmodel_int8 = cto.linear_quantize_weights(mlmodel, config=opt_config)
+		mlmodel_int8.save(coreml_output_path)
+		logger.info(f"Gespeichert: {coreml_output_path}")
+		# 4. Axelera AI Metis AIPU (.onnx -> .axm) -> für --device axelera
+		logger.info("[4/4] Exportiere ONNX und kompiliere für Axelera Metis AIPU...")
+		onnx_output_path = base_export_path.replace(".tflite", ".onnx")
+		axm_output_path = base_export_path.replace(".tflite", ".axm")
+		spec = (tf.TensorSpec((1, img_h, img_w, 3), tf.float32, name="input_1"),)
+		tf2onnx.convert.from_keras(
+				model, input_signature=spec, opset=15, output_path=onnx_output_path
+				)
+		logger.info(f"ONNX-Modell gespeichert: {onnx_output_path}")
+		try:
+			from axelera.compiler import compile_model
+				compile_model(
+				model_path=onnx_output_path,
+				output_path=axm_output_path,
+				calibration_dataset=self.calib_dir,
+				)
+				logger.info(f"Axelera AIPU-Modell gespeichert: {axm_output_path}")
+		except ImportError:
+				logger.info(
+							"Hinweis: axelera.compiler nicht gefunden. Auf Axelera-Host ausführen:\n"
+							f"  axcompiler --model {onnx_output_path} --output {axm_output_path} --quantize"
+							)
+		def train(self):
+			"""Trainiert das MobileNetV2 .h5 Modell und exportiert alle Zielformate."""
+			self.validate_dataset()
+			logger.info(f"Lade .h5 Basismodell von {self.config.updated_base_model_path}")
+			model = tf.keras.models.load_model(str(self.config.updated_base_model_path), compile=False)
+			base_model = self._get_base_model(model)
+			if base_model is not None:
+				for layer in model.layers:
+					layer.trainable = True
+					base_model.trainable = False
+					train_generator, val_generator, class_weights = self.get_image_dataset()
+					callbacks = self._create_callbacks()
+					steps_per_epoch = max(1, train_generator.samples // self.config.params_batch_size)
+					validation_steps = max(1, val_generator.samples // self.config.params_batch_size)
+					# Phase 1: Nur Classification Head trainieren
+					logger.info("Phase 1: Training des Classification Heads")
+					initial_epochs = max(2, self.config.params_epochs // 3)
+					self._compile_model(model, lr=self.config.params_learning_rate)
+					history = model.fit(
+							train_generator,
+							steps_per_epoch=steps_per_epoch,
+							epochs=initial_epochs,
+							validation_data=val_generator,
+							validation_steps=validation_steps,
+							callbacks=callbacks,
+							class_weight=class_weights,
+							verbose=1,
+							)
+					# Phase 2: Fine-Tuning der obersten MobileNetV2-Blöcke
+					logger.info("Phase 2: Fine-Tuning der oberen MobileNetV2-Layer")
+					if base_model is not None:
+						base_model.trainable = True
+						for layer in base_model.layers[:-35]:
+							layer.trainable = False
+							for layer in base_model.layers[-35:]:
+								if isinstance(layer, tf.keras.layers.BatchNormalization):
+									layer.trainable = False
+					else:
+						layer.trainable = True
+						self._compile_model(model, lr=self.config.params_learning_rate / 100)
+						last_epoch = history.epoch[-1] + 1 if history.epoch else initial_epochs
+						history = model.fit(
+								train_generator,
+								steps_per_epoch=steps_per_epoch,
+								epochs=self.config.params_epochs,
+								initial_epoch=last_epoch,
+								validation_data=val_generator,
+								validation_steps=validation_steps,
+								callbacks=callbacks,
+								class_weight=class_weights,
+								verbose=1,
+						)
+					best_model_path = os.path.join(self.config.root_dir, "best_model.h5")
+					if os.path.exists(best_model_path):
+						logger.info(f"Lade bestes Checkpoint-Modell: {best_model_path}")
+						model = tf.keras.models.load_model(best_model_path)
+						model.save(str(self.config.trained_model_path))
+						logger.info(f"Finales .h5 Modell gespeichert: {self.config.trained_model_path}")
+						self.export_edge_models(model, val_generator)
+			
+            return history
