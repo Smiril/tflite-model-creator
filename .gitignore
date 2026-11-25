@@ -1,4 +1,8 @@
 *~
 *.o
 *.a
+*.tflite
+*.onnx
+*.axm
+*.mlpackage
 .DS_Store
